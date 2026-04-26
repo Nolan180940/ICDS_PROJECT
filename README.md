@@ -70,6 +70,183 @@ The system follows a client-server architecture where multiple clients can conne
 - **Personality Mode**: Customizable bot personality
 - **Group Chat Participation**: Bot can join multi-user conversations
 
+---
+
+## 🤖 Bot Integration Interface (How it works)
+
+This section describes the **internal interface contract** between the GUI/chat client layer and the AI bot module. This is *not* the Ollama HTTP API — it is the Python-level calling convention your code uses to route user messages to the bot and display replies.
+
+### Overview: Two layers of "interface"
+
+```
+User types in GUI
+      │
+      ▼
+GUI / Bot Manager layer          ← detects trigger command, calls bot module
+      │   ChatBotClient.chat(message)
+      ▼
+chat_bot_client.py               ← your bot module (internal interface)
+      │   ollama.Client.chat(...)
+      ▼
+Ollama local server              ← http://localhost:11434  (external service)
+      │
+      ▼
+LLM model (e.g. phi3:mini)
+```
+
+- **Internal interface** = how your GUI/manager calls `ChatBotClient` (this section).
+- **External interface** = how `ChatBotClient` talks to the Ollama service (handled automatically by the `ollama` Python library).
+
+---
+
+### The Bot Module: `chat_bot_client.py`
+
+The primary class is **`ChatBotClient`** (in `chat_bot_client.py`), backed by the Ollama Python SDK.
+
+#### Constructor
+
+```python
+ChatBotClient(
+    name="3po",                          # Display name of the bot (cosmetic)
+    model="phi3:mini",                   # Ollama model to use
+    host="http://localhost:11434",       # Ollama server URL
+    headers={"x-some-header": "some-value"}  # Optional HTTP headers
+)
+```
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `name` | `str` | `"3po"` | Bot display name (cosmetic only) |
+| `model` | `str` | `"phi3:mini"` | Ollama model name (must be pulled locally) |
+| `host` | `str` | `"http://localhost:11434"` | URL of the running Ollama server |
+| `headers` | `dict` | `{...}` | Extra HTTP headers forwarded to Ollama |
+
+#### `chat(message: str) → str`  *(primary interface method)*
+
+```python
+reply: str = bot.chat(user_message)
+```
+
+- **Input**: a plain-text user message string.
+- **Output**: the bot's reply as a plain string — display it directly in the GUI.
+- **Side-effect**: appends both the user turn and the assistant turn to `self.messages`, preserving conversation context across calls.
+
+#### `stream_chat(message: str)`  *(streaming variant)*
+
+```python
+bot.stream_chat(user_message)   # prints tokens to stdout as they arrive
+```
+
+- Like `chat`, but streams tokens chunk-by-chunk (currently prints to stdout).
+- Useful if you want to display a "typing…" effect in the GUI — adapt the `print` calls to push tokens to the GUI widget instead.
+
+---
+
+### Conversation Context (`self.messages`)
+
+`ChatBotClient` keeps the full conversation history in `self.messages` — a list of `{"role": ..., "content": ...}` dicts that is passed to Ollama on every call:
+
+```python
+self.messages = [
+    {"role": "user",      "content": "Hello!"},
+    {"role": "assistant", "content": "Hi there! How can I help?"},
+    {"role": "user",      "content": "Tell me a joke."},
+    # ...
+]
+```
+
+**Important considerations:**
+
+| Concern | Current behaviour | Recommendation |
+|---------|------------------|----------------|
+| **Reset / new session** | `self.messages` is never cleared automatically | Call `bot.messages = []` (or create a new `ChatBotClient` instance) to start a fresh conversation |
+| **Per-user context** | One `ChatBotClient` instance = one shared context | Instantiate a **separate** `ChatBotClient` per user (or per chat room) if you need isolated histories |
+| **Global bot** | A single global instance mixes all users' histories | Fine for a demo; not suitable for production multi-user deployment |
+
+---
+
+### Injecting a System Prompt / Personality
+
+To give the bot a persona, prepend a `{"role": "system", ...}` message **before the first user turn**:
+
+```python
+bot = ChatBotClient(model="phi3:mini")
+
+# Inject personality once (before any user messages)
+bot.messages.append({
+    "role": "system",
+    "content": "You are a friendly Python tutor named Tom. Keep replies concise."
+})
+
+reply = bot.chat("How do I reverse a list?")
+print(reply)
+```
+
+The system message persists in `self.messages` and influences all subsequent replies. Reset `bot.messages = []` (and re-inject the system prompt if desired) to clear the persona along with history.
+
+---
+
+### Trigger Commands: Application-level conventions
+
+`/bot [message]` and `@Bot [message]` are **application-level command conventions**, not HTTP endpoints or built-in protocol features. Your GUI / Bot Manager layer is responsible for detecting them:
+
+```python
+# Example routing logic inside your GUI send-button handler
+def on_send(user_input: str):
+    if user_input.startswith("/bot ") or user_input.lower().startswith("@bot "):
+        # Strip the command prefix and route to the bot module
+        message = user_input.split(" ", 1)[1]
+        reply = bot.chat(message)
+        display_message("Bot", reply)          # show in GUI chat window
+    else:
+        # Normal message: send to chat server as usual
+        client.send(user_input)
+```
+
+There is no server-side routing for bot commands — the detection and dispatch happen entirely on the **client side** before any network send.
+
+---
+
+### Practical Integration Example
+
+The following snippet shows the complete lifecycle for wiring a `ChatBotClient` into a GUI client:
+
+```python
+from chat_bot_client import ChatBotClient
+
+# 1. Instantiate once (e.g. when the GUI starts up)
+bot = ChatBotClient(model="phi3:mini", host="http://localhost:11434")
+
+# 2. (Optional) Inject a system prompt / personality
+bot.messages.append({
+    "role": "system",
+    "content": "You are a helpful assistant. Respond in one or two sentences."
+})
+
+# 3. Call .chat() when the user sends a bot-targeted message
+def handle_bot_message(user_text: str) -> str:
+    reply = bot.chat(user_text)   # blocks until Ollama responds
+    return reply                  # caller displays this string in the chat window
+
+# 4. Example usage
+BOT_PREFIX = "/bot "
+user_input = "/bot What is a socket?"
+if user_input.startswith(BOT_PREFIX):
+    message = user_input[len(BOT_PREFIX):]    # strip "/bot " prefix
+    bot_reply = handle_bot_message(message)
+    print(f"[Bot] {bot_reply}")               # replace print with GUI display call
+
+# 5. Reset context when the user ends the bot session
+bot.messages = []
+```
+
+**Prerequisites before running:**
+1. Ollama must be installed and running: `ollama serve`
+2. The chosen model must be pulled: `ollama pull phi3:mini`
+3. Python package installed: `pip install ollama`
+
+---
+
 #### 2. Online Gaming 🎮
 - **Single Player with Leaderboard**: Submit scores to global ranking
 - **Multiplayer Games**: Tic-Tac-Toe, chess, or other two-player games
