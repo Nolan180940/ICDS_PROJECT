@@ -78,6 +78,19 @@ This section describes the **internal interface contract** between the GUI/chat 
 
 ### Overview: Two layers of "interface"
 
+### 📡 GUI ↔ Bot Manager 调用约定
+
+#### 1. 触发方式（客户端识别）
+```python
+# GUI 层识别用户输入是否调用 Bot
+if user_input.startswith('/bot ') or user_input.lower().startswith('@bot'):
+    # 提取消息内容
+    bot_prompt = user_input.split(' ', 1)[1]
+    # 调用 Bot 模块
+    reply = bot_manager.get_response(bot_prompt, personality="academic")
+    # 显示回复
+    gui.display_bot_reply(reply)
+
 ```
 User types in GUI
       │
