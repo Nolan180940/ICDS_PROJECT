@@ -1,0 +1,27 @@
+# Distributed Intelligent Chat System - Dependencies
+
+# Core dependencies (required)
+# Python 3.8+
+
+# GUI (included in standard library)
+# tkinter
+
+# Network (included in standard library)
+# socket
+# threading
+# select
+# json
+
+# AI/ML Features (optional but recommended)
+textblob>=0.17.1        # Sentiment analysis
+requests>=2.28.0        # HTTP requests for Ollama API
+
+# Optional: OpenAI-compatible API client
+# openai>=1.0.0         # If using OpenAI API or compatible endpoints
+
+# Optional: Ollama Python client
+# ollama>=0.1.0         # Alternative to direct HTTP requests
+
+# Development
+# pytest>=7.0.0         # Testing
+# black>=22.0.0         # Code formatting
