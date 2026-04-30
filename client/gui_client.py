@@ -14,6 +14,7 @@ Features:
 - Group chat with @Bot trigger ✅
 """
 
+import os
 import tkinter as tk
 from tkinter import ttk, scrolledtext, messagebox, simpledialog
 import threading
@@ -605,9 +606,19 @@ Tips:
 
 def main():
     """Main entry point."""
-    # Create root window for login dialog
-    root = tk.Tk()
-    root.withdraw()  # Hide root window
+    if not os.environ.get('DISPLAY') and not os.environ.get('WAYLAND_DISPLAY'):
+        print('[ERROR] No graphical display available. GUI client requires X11/Wayland.')
+        print('Set $DISPLAY or $WAYLAND_DISPLAY, or use a terminal-based client instead.')
+        return
+
+    try:
+        # Create root window for login dialog
+        root = tk.Tk()
+        root.withdraw()  # Hide root window
+    except tk.TclError as e:
+        print(f'[ERROR] Unable to start GUI: {e}')
+        print('GUI client requires a graphical display. Set $DISPLAY or use a terminal-based client instead.')
+        return
     
     # Show login dialog
     username, persona = show_login_dialog(root)

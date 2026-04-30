@@ -58,7 +58,12 @@ def myrecv(s: socket.socket) -> str:
             print(f'[ERROR] Receive failed: {e}')
             return ''
     
-    size = int(size)
+    try:
+        size = int(size)
+    except ValueError:
+        # Invalid protocol framing; some other client or HTTP request connected.
+        print('[ERROR] Invalid size prefix received, closing socket')
+        return ''
     
     # Now receive message
     msg = ''
