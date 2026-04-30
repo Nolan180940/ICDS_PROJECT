@@ -1,1 +1,12 @@
-Nothing should be ignored in this case, as the changes only include source/config files (.py and .md) without any build artifacts, dependencies, or temporary files.
+# Local environment and secrets
+.env
+
+# Python bytecode and caches
+__pycache__/
+*.pyc
+
+# Generated image outputs
+generated_images/
+
+# Index/cache files
+*.idx

@@ -14,11 +14,16 @@ import requests
 from typing import Optional, List, Dict
 import sys
 import os
+from dotenv import load_dotenv
 
 # Add project root to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Load environment variables from .env if present
+load_dotenv()
+
 import config.settings as cfg
+from bot.image_gen import generate_image
 
 
 class AIBot:
@@ -164,29 +169,44 @@ class AIBot:
         Since we may not have a real image generation API,
         this simulates the functionality with a placeholder.
         """
-        # Extract description from command
-        if ":" in command:
+        # Extract description from command.
+        # Supports both:
+        #   /aipic: a lovely little girl
+        #   /aipic a lovely little girl
+        parts = command.split(maxsplit=1)
+        if len(parts) > 1:
+            description = parts[1].lstrip(":").strip()
+        elif ":" in command:
             description = command.split(":", 1)[1].strip()
         else:
             description = "a beautiful scene"
         
         # Log the request
         print(f"[BOT] Image generation requested: '{description}'")
-        
-        # Simulate image generation (placeholder)
-        # In production, this would call DALL-E, Stable Diffusion, etc.
-        response = (
-            f"🎨 AI Image Generation Request:\n"
-            f"Description: '{description}'\n\n"
-            f"[Image would be generated here]\n\n"
-            f"Note: To enable real image generation, configure an API key for:\n"
-            f"- DALL-E API\n"
-            f"- Stable Diffusion API\n"
-            f"- Midjourney API\n\n"
-            f"For now, imagine: A wonderful visualization of '{description}' ✨"
-        )
-        
-        return response
+
+        # Try to generate image via Pollinations (or another configured provider)
+        try:
+            image_path = generate_image(description)
+
+            response = (
+                f"🎨 AI Image Generated: '{description}'\n"
+                f"Saved to: {image_path}"
+            )
+            return response
+        except Exception as e:
+            # Fallback to placeholder message if generation failed
+            print(f"[BOT] Image generation error: {e}")
+            response = (
+                f"🎨 AI Image Generation Request:\n"
+                f"Description: '{description}'\n\n"
+                f"[Image generation failed: {e}]\n\n"
+                f"Note: To enable real image generation, configure an API key for:\n"
+                f"- DALL-E API\n"
+                f"- Stable Diffusion API\n"
+                f"- Midjourney API\n\n"
+                f"For now, imagine: A wonderful visualization of '{description}' ✨"
+            )
+            return response
     
     def clear_history(self):
         """Clear conversation history."""

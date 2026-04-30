@@ -16,6 +16,9 @@
 textblob>=0.17.1        # Sentiment analysis
 requests>=2.28.0        # HTTP requests for Ollama API
 
+# Environment variables from .env
+python-dotenv>=1.0.0
+
 # Optional: OpenAI-compatible API client
 # openai>=1.0.0         # If using OpenAI API or compatible endpoints
 
