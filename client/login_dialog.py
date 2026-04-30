@@ -13,24 +13,52 @@ from typing import Optional
 class LoginDialog:
     """Login dialog window."""
     
-    def __init__(self, parent, title: str = "Chat Login"):
-        self.parent = parent
-        self.result: Optional[str] = None
-        
-        # Create top-level dialog
-        self.dialog = tk.Toplevel(parent)
-        self.dialog.title(title)
-        self.dialog.resizable(False, False)
-        self.dialog.protocol("WM_DELETE_WINDOW", self._on_close)
-        
-        # Center the dialog
-        self.dialog.transient(parent)
-        self.dialog.grab_set()
-        
-        self._setup_ui()
-        
-        # Wait for dialog to close
-        parent.wait_window(self.dialog)
+    def __init__(self, parent=None, title: str = "Chat Login"):
+        try:
+            self.parent = parent
+            self.result: Optional[str] = None
+            self.owns_root = parent is None
+            
+            # Create top-level dialog
+            if self.owns_root:
+                self.dialog = tk.Tk()
+            else:
+                self.dialog = tk.Toplevel(parent)
+            self.dialog.title(title)
+            self.dialog.resizable(False, False)
+            self.dialog.protocol("WM_DELETE_WINDOW", self._on_close)
+            
+            # Set window size
+            self.dialog.geometry("420x380")
+            
+            # Make dialog appear on top
+            self.dialog.attributes('-topmost', True)
+            
+            self._setup_ui()
+            
+            # Update display to ensure window is shown
+            self.dialog.update_idletasks()
+            
+            # Force window to appear on screen center
+            self.dialog.deiconify()
+            self.dialog.lift()
+            x = (self.dialog.winfo_screenwidth() // 2) - 210
+            y = (self.dialog.winfo_screenheight() // 2) - 190
+            self.dialog.geometry(f"420x380+{x}+{y}")
+            
+            print("[DEBUG] 登录对话框已创建并显示在屏幕中央")
+            
+            # Make transient and grab after positioning
+            if not self.owns_root:
+                self.dialog.transient(parent)
+            self.dialog.update()
+            self.dialog.grab_set()
+            self.dialog.focus_force()
+        except Exception as e:
+            print(f"[ERROR] 登录对话框创建失败: {e}")
+            import traceback
+            traceback.print_exc()
+            raise
     
     def _setup_ui(self):
         """Setup the login UI."""
@@ -115,11 +143,13 @@ class LoginDialog:
         
         self.result = username
         self.dialog.destroy()
+        self.dialog.quit()
     
     def _on_cancel(self):
         """Handle Cancel button click."""
         self.result = None
         self.dialog.destroy()
+        self.dialog.quit()
     
     def _on_close(self):
         """Handle window close button."""
@@ -144,8 +174,18 @@ def show_login_dialog(parent) -> tuple:
     Returns:
         Tuple of (username or None, persona string)
     """
+    print("[DEBUG] 显示登录对话框...")
     dialog = LoginDialog(parent)
-    return dialog.get_username(), dialog.get_persona()
+    dialog.dialog.mainloop()
+    username = dialog.get_username()
+    persona = dialog.get_persona()
+    print(f"[DEBUG] 登录结果: username={username}, persona={persona}")
+    if dialog.owns_root:
+        try:
+            dialog.dialog.destroy()
+        except Exception:
+            pass
+    return username, persona
 
 
 if __name__ == "__main__":

@@ -15,6 +15,7 @@ Features:
 """
 
 import os
+import sys
 import tkinter as tk
 from tkinter import ttk, scrolledtext, messagebox, simpledialog
 import threading
@@ -22,6 +23,9 @@ import queue
 import json
 import time
 from typing import Optional, Dict, List
+
+# Add project root to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import config.settings as cfg
 from client.chat_client import ChatClient
@@ -148,8 +152,7 @@ class GUIChatClient:
         
         self.message_entry = ttk.Entry(
             input_frame,
-            font=self.fonts['entry'],
-            relief='flat'
+            font=self.fonts['entry']
         )
         self.message_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
         self.message_entry.bind('<Return>', lambda e: self._send_message())
@@ -320,11 +323,6 @@ class GUIChatClient:
             # Store in history for summary
             self.chat_history.append(f"{sender}: {content}")
             
-            # Check if this should trigger bot response (group chat feature)
-            if self.bot_enabled and self._should_bot_respond(content, sender):
-                self._schedule_bot_response(content, sender)
-                return  # Don't display original message yet, will show with bot response
-            
             # Analyze sentiment and display with emoji
             sentiment = self.sentiment_analyzer.analyze(content)
             self._display_message(
@@ -359,6 +357,14 @@ class GUIChatClient:
                 self._display_system(f"Connection request from {from_user}")
             elif status == 'success':
                 self._display_system(f"Connected with {from_user}")
+        
+        elif action == 'bot_response':
+            response = msg_data.get('content', '')
+            original_sender = msg_data.get('original_sender', '')
+            if original_sender:
+                self._display_message(f"🤖 Bot: {response}", tag='bot')
+            else:
+                self._display_message(f"🤖 Bot: {response}", tag='bot')
         
         elif action == 'disconnect':
             self._display_system("Peer disconnected")
@@ -473,17 +479,22 @@ class GUIChatClient:
         
         # Send to server
         if self.connected and self.client:
-            self.client.send_message(content)
+            self.client.send_message(content, broadcast=True)
         
         # ✅ Display own message (right-aligned, blue)
         self._display_message(f"{self.username}: {content}", tag='sent')
         
         # Store in history
         self.chat_history.append(f"{self.username}: {content}")
+
+        # Trigger local bot response for the sender's own @Bot mentions/keywords
+        if self.bot_enabled and self._should_bot_respond(content, self.username):
+            self._schedule_bot_response(content, self.username)
     
     def _handle_command(self, command: str):
         """Handle special commands."""
-        cmd = command.lower().split()[0]
+        # Extract command name (handle both /cmd arg and /cmd: arg formats)
+        cmd = command.lower().split()[0].rstrip(':')
         
         if cmd == '/help':
             self._show_help()
@@ -606,32 +617,40 @@ Tips:
 
 def main():
     """Main entry point."""
-    if not os.environ.get('DISPLAY') and not os.environ.get('WAYLAND_DISPLAY'):
-        print('[ERROR] No graphical display available. GUI client requires X11/Wayland.')
-        print('Set $DISPLAY or $WAYLAND_DISPLAY, or use a terminal-based client instead.')
-        return
+    # Check for display only on Linux/Unix systems
+    if sys.platform.startswith('linux'):
+        if not os.environ.get('DISPLAY') and not os.environ.get('WAYLAND_DISPLAY'):
+            print('[ERROR] No graphical display available. GUI client requires X11/Wayland.')
+            print('Set $DISPLAY or $WAYLAND_DISPLAY, or use a terminal-based client instead.')
+            return
 
     try:
-        # Create root window for login dialog
-        root = tk.Tk()
-        root.withdraw()  # Hide root window
-    except tk.TclError as e:
-        print(f'[ERROR] Unable to start GUI: {e}')
-        print('GUI client requires a graphical display. Set $DISPLAY or use a terminal-based client instead.')
-        return
-    
-    # Show login dialog
-    username, persona = show_login_dialog(root)
-    
-    if username:
-        root.destroy()
+        print("[INFO] 启动 GUI 客户端...")
+        sys.stdout.flush()
+        print("[INFO] 创建登录对话框...")
+        sys.stdout.flush()
         
-        # Start main application
-        app = GUIChatClient(username=username, persona=persona)
-        app.run()
-    else:
-        print("Login cancelled")
-        root.destroy()
+        # Show login dialog
+        print("[INFO] 等待用户登录...")
+        sys.stdout.flush()
+        username, persona = show_login_dialog(None)
+        
+        if username:
+            print(f"[INFO] 用户登录: {username}, 角色: {persona}")
+            sys.stdout.flush()
+            
+            # Start main application
+            app = GUIChatClient(username=username, persona=persona)
+            app.run()
+        else:
+            print("登录已取消")
+            sys.stdout.flush()
+    
+    except Exception as e:
+        print(f"[ERROR] 程序崩溃: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.stdout.flush()
 
 
 if __name__ == "__main__":

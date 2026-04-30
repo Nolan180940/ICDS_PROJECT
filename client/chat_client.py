@@ -13,6 +13,11 @@ import threading
 import queue
 import json
 from typing import Optional, Callable
+import sys
+import os
+
+# Add project root to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import config.settings as cfg
 from utils.chat_utils import mysend, myrecv
@@ -47,14 +52,10 @@ class ChatClient:
         try:
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.connect((self.host, self.port))
-            self.socket.setblocking(0)  # Non-blocking for select
             self.connected = True
             
             if self.on_connected:
                 self.on_connected()
-            
-            # Start receiver thread
-            self._start_receiver()
             
             return True
         except Exception as e:
@@ -92,6 +93,8 @@ class ChatClient:
                 resp_data = json.loads(response)
                 if resp_data.get("status") == "ok":
                     self.logged_in = True
+                    if not self._receiver_thread or not self._receiver_thread.is_alive():
+                        self._start_receiver()
                     return True
             return False
         except Exception as e:

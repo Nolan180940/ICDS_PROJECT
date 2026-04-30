@@ -11,8 +11,13 @@ import time
 import socket
 import select
 import sys
+import os
 import json
 import pickle as pkl
+
+# Add project root to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from utils.chat_utils import mysend, myrecv, text_proc
 import config.settings as cfg
 

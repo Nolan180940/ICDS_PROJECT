@@ -6,6 +6,12 @@ Provides functionality to summarize recent chat history using:
 - Fallback to simple extractive summarization
 """
 
+import sys
+import os
+
+# Add project root to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import config.settings as cfg
 
 

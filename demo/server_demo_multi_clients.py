@@ -1,5 +1,11 @@
 # https://pymotw.com/2/select/
 
+import sys
+import os
+
+# Add project root to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import socket, select
 import utils
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

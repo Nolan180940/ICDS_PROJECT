@@ -4,6 +4,12 @@ Includes network communication helpers and text processing.
 """
 import socket
 import time
+import sys
+import os
+
+# Add project root to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from config.settings import SIZE_SPEC, CHAT_WAIT
 
 
