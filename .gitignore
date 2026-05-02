@@ -10,3 +10,19 @@ generated_images/
 
 # Index/cache files
 *.idx
+
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V8
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# Linux
+*~
