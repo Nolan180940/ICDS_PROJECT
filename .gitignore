@@ -1,12 +1,33 @@
 # Local environment and secrets
 .env
+.venv/
+venv/
+env/
 
-# Python bytecode and caches
-__pycache__/
-*.pyc
 
 # Generated image outputs
 generated_images/
 
 # Index/cache files
 *.idx
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V8
+.Trashes
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
